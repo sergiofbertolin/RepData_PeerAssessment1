@@ -6,20 +6,130 @@ output:
 ---
 
 
-## Loading and preprocessing the data
+## 1.Loading and preprocessing the data
 
 
+###1.1.downloading and creating file in csv format, reading it
 
-## What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+if(!file.exists("./activity.csv")){
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip","./data_activity.zip",method="auto")
+    unzip("./data_activity.zip")
+}
+  
+data <- read.csv("./activity.csv",header=TRUE)
+```
 
+###1.2.creating a data frame with steps grouped by day
+```{r, echo=TRUE}
+  data_by_day <- aggregate(steps ~ date,data,sum)
+  data_by_day
+```
+  
+###1.3.generating the histogram of total steps by day and computing mean and median of total steps by day
+```{r, echo=TRUE}
+  hist(data_by_day$steps,xlab="Total steps by day",col="blue",main="Histogram of Total steps by day")
+```
 
+## 2.What is mean total number of steps taken per day?
 
-## What is the average daily activity pattern?
+###2.1.computing mean and median of total steps by day
+```{r, echo=TRUE}
+  mean_steps_by_day <- mean(data_by_day$steps)
+  median_steps_by_day <- median(data_by_day$steps)
+  mean_steps_by_day
+  median_steps_by_day
 
+```
 
+## 3.What is the average daily activity pattern?
 
-## Imputing missing values
+###3.1.creating a data frame with steps averaged by interval and plotting the result
+```{r, echo=TRUE}
+  
+  data_by_interval <- aggregate(steps ~ interval,data,mean)
+  
+  ##plotting the result
+  plot(data_by_interval$interval,data_by_interval$steps,type="l",xlab="intervals",ylab="mean of steps across all days")
+```
 
+###3.2.finding the interval with maximum steps
+```{r, echo=TRUE}
+  interval_with_max_steps <- data_by_interval[data_by_interval$steps==max(data_by_interval$steps),1]
+  interval_with_max_steps
 
+```
+  
+##4.inputting missing values
 
-## Are there differences in activity patterns between weekdays and weekends?
+###4.1.counting NA's
+```{r, echo=TRUE}
+  
+  na_number <- sum(is.na(data))
+  na_number
+```
+  
+###4.2.Replace NA's with the mean for the specific interval  
+
+The chosen strategy is replacing NA's with the mean value of steps for the specific interval considered
+
+```{r, echo=TRUE}
+  ##Firstly I found where NAs are
+  data_new <- data
+  ind_na <- is.na(data[,1])
+```
+
+###4.3.creating a new data frame with steps grouped by day
+```{r, echo=TRUE}
+  data_new[ind_na,1] <- data_by_interval[,2]
+  
+
+  data_new_by_day <- aggregate(steps ~ date,data_new,sum)
+  data_new_by_day
+```
+
+###4.4.generating the histogram of total steps by day 
+```{r, echo=TRUE}
+  hist(data_new_by_day$steps,xlab="Total steps by day",col="blue",main="Histogram of Total steps by day")
+  
+  ##computing mean and median of total steps by day
+  mean_new_steps_by_day <- mean(data_new_by_day$steps)
+  median_new_steps_by_day <- median(data_new_by_day$steps)
+  mean_new_steps_by_day
+  mean_new_steps_by_day
+  
+```
+As we can see, now the mean and the median are exactly the same. This is possible because we have introduced mean values instead of missing values.
+
+## 5.Are there differences in activity patterns between weekdays and weekends?
+
+```{r, echo=TRUE}
+  
+  ##creating a new column indicating if it's a weekday
+  days <- data_new[,2]
+  Sys.setlocale("LC_TIME", "English")
+  weekday <- weekdays(as.Date(days))
+  weekday[weekday=="Monday"] <- "weekday"
+  weekday[weekday=="Tuesday"] <- "weekday"
+  weekday[weekday=="Wednesday"] <- "weekday"
+  weekday[weekday=="Thursday"] <- "weekday"
+  weekday[weekday=="Friday"] <- "weekday"
+  weekday[weekday=="Saturday"] <- "weekend"
+  weekday[weekday=="Sunday"] <- "weekend"
+  
+  ##adding the new variable to the dataframe
+  data_new$weekday <- weekday
+  
+  ##Making new groups weekday + interval by mean operation across days
+  data_by_weekdays <- aggregate(data_new$steps, by=list(data_new$interval,data_new$weekday),mean)
+  
+  colnames(data_by_weekdays) <- c("interval","weekday","steps")
+
+  library(lattice)
+  
+ xyplot(data_by_weekdays$steps~data_by_weekdays$interval | data_by_weekdays$weekday,type="l",layout=c(1,2),xlab="Interval",ylab="Number of steps")
+```
+
+As we can see on the figures above, activity starts early at weekdays, with a clear peak placed on the rush hour where people tend to go towards their workplaces, schools, college...
+
+On weekends, activity starts later and is more equally distributed along the whole day
